@@ -217,11 +217,12 @@
       <h2><span class="eyebrow">Step 1</span>이번 주 예산 정하기</h2>
       <div class="form-grid">
         <div>
-          <label for="weeks">기간</label>
-          <select id="weeks">
-            <option value="1" selected>이번 주</option>
-            <option value="2">2주</option>
-            <option value="4">4주</option>
+          <label for="weekOffset">주 선택</label>
+          <select id="weekOffset">
+            <option value="0" selected>이번 주</option>
+            <option value="1">다음 주</option>
+            <option value="2">셋째 주</option>
+            <option value="3">넷째 주</option>
           </select>
         </div>
         <div></div>
@@ -315,7 +316,7 @@
 
 <script>
   // ⚠️ 워커 배포 후 본인 주소로 교체하세요 (예: https://kids-culture-planner.yourname.workers.dev)
-  const WORKER_BASE_URL = "https://kids-culture-planner.kim80091.workers.dev";
+  const WORKER_BASE_URL = "https://kids-culture-planner.YOUR-SUBDOMAIN.workers.dev";
 
   const fmtWon = (n) => (n || 0).toLocaleString("ko-KR") + "원";
   const fmtLocalDate = (d) => {
@@ -356,7 +357,7 @@
   // ---------- 탭 1: 예산 플래너 ----------
   document.getElementById("planBtn").addEventListener("click", async () => {
     const region = document.getElementById("region").value;
-    const weeks = document.getElementById("weeks").value;
+    const weekOffset = document.getElementById("weekOffset").value;
     const weekdayBudget = document.getElementById("weekdayBudget").value;
     const weekendBudget = document.getElementById("weekendBudget").value;
     const btn = document.getElementById("planBtn");
@@ -367,7 +368,7 @@
     statusEl.innerHTML = "";
 
     try {
-      const url = `${WORKER_BASE_URL}/api/plan?region=${region}&weeks=${weeks}&weekdayBudget=${weekdayBudget}&weekendBudget=${weekendBudget}`;
+      const url = `${WORKER_BASE_URL}/api/plan?region=${region}&weekOffset=${weekOffset}&weekdayBudget=${weekdayBudget}&weekendBudget=${weekendBudget}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
