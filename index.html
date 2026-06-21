@@ -144,6 +144,19 @@
     padding-top:12px; border-top:2px solid var(--border); font-weight:700; font-size:14px;
   }
 
+  .party-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;}
+  .party-grid label{font-size:11px;}
+
+  .cost-calc{margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);}
+  .cost-calc .calc-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:8px;}
+  .cost-calc select{margin-top:8px;}
+  .cost-calc .calc-result{
+    display:flex; justify-content:space-between; align-items:center; margin-top:10px;
+    font-size:13px; background:#FBFAF7; border:1px solid var(--border); border-radius:8px; padding:8px 10px;
+  }
+  .cost-calc .calc-result b{color:var(--weekday);}
+  .cost-calc button.primary{margin-top:10px;}
+
   .cal-grid{display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; min-width:560px;}
   .cal-scroll{overflow-x:auto; padding-bottom:4px;}
   .cal-head{font-size:11px; font-weight:700; text-align:center; color:var(--text-soft); padding-bottom:4px;}
@@ -198,6 +211,25 @@
       </select>
     </div>
   </div>
+
+  <section class="card">
+    <h2><span class="eyebrow">설정</span>가족 구성</h2>
+    <p class="hint">"둘러보고 담기"에서 비용을 인원수에 맞게 계산할 때 쓰여요.</p>
+    <div class="party-grid">
+      <div>
+        <label for="partyAdult">성인</label>
+        <input type="number" id="partyAdult" min="0" value="2" />
+      </div>
+      <div>
+        <label for="partyTeen">청소년</label>
+        <input type="number" id="partyTeen" min="0" value="0" />
+      </div>
+      <div>
+        <label for="partyKid">어린이</label>
+        <input type="number" id="partyKid" min="0" value="1" />
+      </div>
+    </div>
+  </section>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="plan">예산 추천 일정</button>
@@ -291,7 +323,22 @@
         <span>총 예상 비용</span>
         <span id="selectionTotal">0원</span>
       </div>
-      <p class="hint" style="margin-top:8px;">비용은 기본 0원으로 들어가요. 정가를 확인한 다음 직접 입력해주세요.</p>
+      <p class="hint" style="margin-top:8px;">비용은 기본 0원으로 들어가요. 정가를 확인한 다음 직접 입력하거나, 아래 계산기로 인원수에 맞게 계산해서 넣어주세요.</p>
+
+      <div class="cost-calc" id="costCalc" style="display:none;">
+        <span class="save-label">🧮 인원수로 비용 계산하기</span>
+        <select id="calcTargetItem"></select>
+        <div class="calc-grid">
+          <input type="number" id="calcAdultPrice" min="0" step="500" placeholder="성인 단가" />
+          <input type="number" id="calcTeenPrice" min="0" step="500" placeholder="청소년 단가" />
+          <input type="number" id="calcKidPrice" min="0" step="500" placeholder="어린이 단가" />
+        </div>
+        <div class="calc-result">
+          <span id="calcFormula">성인 2 · 청소년 0 · 어린이 1 기준</span>
+          <b id="calcResult">0원</b>
+        </div>
+        <button class="primary" id="calcApplyBtn">선택한 항목에 적용하기</button>
+      </div>
 
       <div class="save-row" id="selectionSaveRow" style="display:none;">
         <span class="save-label">📌 마음에 들면 저장해두기</span>
@@ -335,6 +382,39 @@
   }
 
   let lastPlanData = null;
+
+  // ---------- 가족 구성 (성인/청소년/어린이 인원수) ----------
+  const PARTY_KEY = "kids-culture-planner:party";
+
+  function loadParty() {
+    try {
+      return { adult: 2, teen: 0, kid: 1, ...JSON.parse(localStorage.getItem(PARTY_KEY) || "{}") };
+    } catch (e) {
+      return { adult: 2, teen: 0, kid: 1 };
+    }
+  }
+
+  function currentParty() {
+    return {
+      adult: Number(document.getElementById("partyAdult").value) || 0,
+      teen: Number(document.getElementById("partyTeen").value) || 0,
+      kid: Number(document.getElementById("partyKid").value) || 0,
+    };
+  }
+
+  (function initParty() {
+    const saved = loadParty();
+    document.getElementById("partyAdult").value = saved.adult;
+    document.getElementById("partyTeen").value = saved.teen;
+    document.getElementById("partyKid").value = saved.kid;
+  })();
+
+  ["partyAdult", "partyTeen", "partyKid"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", () => {
+      localStorage.setItem(PARTY_KEY, JSON.stringify(currentParty()));
+      renderCostCalc();
+    });
+  });
 
   // ---------- 탭 전환 ----------
   const LAST_TAB_KEY = "kids-culture-planner:last-tab";
@@ -567,6 +647,7 @@
       wrap.innerHTML = `<div class="empty">아직 담은 일정이 없어요. 위 목록에서 "담기"를 눌러주세요.</div>`;
       document.getElementById("selectionTotal").textContent = "0원";
       saveRow.style.display = "none";
+      document.getElementById("costCalc").style.display = "none";
       return;
     }
     wrap.innerHTML = entries
@@ -597,7 +678,51 @@
     saveRow.style.display = "flex";
     document.getElementById("selectionThemeInput").placeholder =
       `테마/제목 (비워두면 자동: ${deriveTheme(entries.map(([, e]) => e.item.category))})`;
+
+    renderCostCalc();
   }
+
+  // ---------- 인원수 기반 비용 계산기 ----------
+  function renderCostCalc() {
+    const entries = [...selectedMap.entries()];
+    const calc = document.getElementById("costCalc");
+    if (!entries.length) {
+      calc.style.display = "none";
+      return;
+    }
+    calc.style.display = "block";
+
+    const select = document.getElementById("calcTargetItem");
+    const prevValue = select.value;
+    select.innerHTML = entries.map(([id, { item }]) => `<option value="${id}">${item.title}</option>`).join("");
+    if (entries.some(([id]) => id === prevValue)) select.value = prevValue;
+
+    updateCalcPreview();
+  }
+
+  function updateCalcPreview() {
+    const party = currentParty();
+    const adultPrice = Number(document.getElementById("calcAdultPrice").value) || 0;
+    const teenPrice = Number(document.getElementById("calcTeenPrice").value) || 0;
+    const kidPrice = Number(document.getElementById("calcKidPrice").value) || 0;
+    const total = adultPrice * party.adult + teenPrice * party.teen + kidPrice * party.kid;
+    document.getElementById("calcFormula").textContent = `성인 ${party.adult} · 청소년 ${party.teen} · 어린이 ${party.kid} 기준`;
+    document.getElementById("calcResult").textContent = fmtWon(total);
+    return total;
+  }
+
+  ["calcAdultPrice", "calcTeenPrice", "calcKidPrice"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", updateCalcPreview);
+  });
+
+  document.getElementById("calcApplyBtn").addEventListener("click", () => {
+    const targetId = document.getElementById("calcTargetItem").value;
+    if (!targetId || !selectedMap.has(targetId)) return;
+    const total = updateCalcPreview();
+    selectedMap.get(targetId).cost = total;
+    renderSelection();
+    renderCalendar();
+  });
 
   // ---------- 일정 달력 (오늘 기준 한 달, 일~토) ----------
   function buildCalendarDays() {
