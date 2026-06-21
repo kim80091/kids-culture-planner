@@ -337,9 +337,11 @@
   let lastPlanData = null;
 
   // ---------- 탭 전환 ----------
+  const LAST_TAB_KEY = "kids-culture-planner:last-tab";
   let currentTab = "plan";
   function switchTab(name) {
     currentTab = name;
+    localStorage.setItem(LAST_TAB_KEY, name);
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
     document.getElementById("tabPlan").style.display = name === "plan" ? "block" : "none";
     document.getElementById("tabBrowse").style.display = name === "browse" ? "block" : "none";
@@ -742,6 +744,7 @@
   renderSelection();
   renderCalendar();
   renderSavedList();
+  switchTab(localStorage.getItem(LAST_TAB_KEY) || "plan");
 </script>
 
 </body>
