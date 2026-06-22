@@ -189,9 +189,30 @@
   .saved-row .actions button.del-btn{color:#C0432B; border-color:#F3D2C8;}
 
   footer{max-width:760px; margin:0 auto; padding:0 16px; color:var(--text-soft); font-size:11px;}
+
+  .source-bar{
+    background:#F5F2EC; border-bottom:1px solid var(--border);
+    padding:6px 16px; font-size:10px; color:var(--text-soft);
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .source-bar .label{font-weight:700; color:var(--text-soft); white-space:nowrap;}
+  .source-dot{display:inline-flex; align-items:center; gap:4px; white-space:nowrap;}
+  .source-dot .dot{width:6px; height:6px; border-radius:50%; background:#C8C3B8; flex-shrink:0;}
+  .source-dot.ok .dot{background:var(--free);}
+  .source-dot.err .dot{background:#CCC;}
+  .source-dot.checking .dot{background:#F0C040; animation:blink .8s infinite alternate;}
+  @keyframes blink{to{opacity:.3;}}
 </style>
 </head>
 <body>
+
+<div class="source-bar" id="sourceBar">
+  <span class="label">데이터 출처</span>
+  <span class="source-dot checking" id="src-kopis" title="KOPIS 공연예술통합전산망"><span class="dot"></span>KOPIS 공연</span>
+  <span class="source-dot checking" id="src-seoul" title="서울시 열린데이터광장"><span class="dot"></span>서울시 문화행사</span>
+  <span class="source-dot checking" id="src-tour" title="한국관광공사 TourAPI"><span class="dot"></span>TourAPI 체험·축제</span>
+  <span class="source-dot checking" id="src-culture" title="문화데이터광장 공연전시정보"><span class="dot"></span>문화데이터광장</span>
+</div>
 
 <header>
   <h1>아이와 문화생활 🎨</h1>
@@ -253,7 +274,8 @@
         <div>
           <label for="weekOffset">주 선택</label>
           <select id="weekOffset">
-            <option value="0" selected>이번 주</option>
+            <option value="0" selected>이번 주 (월~일)</option>
+            <option value="weekend">이번 주말 (토~일)</option>
             <option value="1">다음 주</option>
             <option value="2">셋째 주</option>
             <option value="3">넷째 주</option>
@@ -897,11 +919,36 @@
     wrap.querySelectorAll(".del-btn").forEach((b) => b.addEventListener("click", () => deleteSavedSchedule(b.dataset.id)));
   }
 
+  // ---------- 데이터 소스 배너 (페이지 로드 시 precheck 조용히 호출) ----------
+  const SOURCE_MAP = {
+    kopis:   "src-kopis",
+    seoul:   "src-seoul",
+    tour:    "src-tour",
+    culture: "src-culture",
+  };
+
+  async function checkSources() {
+    try {
+      const res = await fetch(`${WORKER_BASE_URL}/api/precheck`);
+      const data = await res.json();
+      Object.entries(SOURCE_MAP).forEach(([key, elemId]) => {
+        const el = document.getElementById(elemId);
+        if (!el) return;
+        const ok = data[key]?.ok;
+        el.classList.remove("checking", "ok", "err");
+        el.classList.add(ok ? "ok" : "err");
+      });
+    } catch (e) {
+      // precheck 실패해도 UI는 그냥 "checking" 상태로 유지
+    }
+  }
+
   // 초기 로드
   renderSelection();
   renderCalendar();
   renderSavedList();
   switchTab(localStorage.getItem(LAST_TAB_KEY) || "plan");
+  checkSources();
 </script>
 
 </body>
