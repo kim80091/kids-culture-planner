@@ -4,7 +4,7 @@
  * data/culture-events.json 에 저장합니다.
  *
  * 시도하는 엔드포인트 순서:
- * 1) http://www.culture.go.kr/openapi/rest/publicperformancedisplays/period
+ * 1) https://www.culture.go.kr/openapi/rest/publicperformancedisplays/period
  *    (Cloudflare에서는 에러페이지를 돌려주지만 GitHub 서버에선 정상 작동할 수 있음)
  * 2) https://api.kcisa.kr/openapi/service/rest/convergence2018/conver9
  *    (공공미술 아닌 다른 행사 데이터. Cloudflare에선 막혔지만 GitHub 서버에선 접근 가능)
