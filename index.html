@@ -404,17 +404,47 @@
     };
   }
 
-  (function initParty() {
-    const saved = loadParty();
-    document.getElementById("partyAdult").value = saved.adult;
-    document.getElementById("partyTeen").value = saved.teen;
-    document.getElementById("partyKid").value = saved.kid;
+  // ---------- 설정값 통합 저장·복원 (지역/주선택/예산/가족구성) ----------
+  const SETTINGS_KEY = "kids-culture-planner:settings";
+
+  function loadSettings() {
+    try {
+      return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveSettings() {
+    const s = {
+      region:        document.getElementById("region").value,
+      weekOffset:    document.getElementById("weekOffset").value,
+      weekdayBudget: document.getElementById("weekdayBudget").value,
+      weekendBudget: document.getElementById("weekendBudget").value,
+      ...currentParty(),
+    };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  }
+
+  (function initSettings() {
+    const s = loadSettings();
+    if (s.region)        document.getElementById("region").value        = s.region;
+    if (s.weekOffset)    document.getElementById("weekOffset").value    = s.weekOffset;
+    if (s.weekdayBudget) document.getElementById("weekdayBudget").value = s.weekdayBudget;
+    if (s.weekendBudget) document.getElementById("weekendBudget").value = s.weekendBudget;
+    // 가족 구성은 PARTY_KEY도 같이 지원 (이전 버전 호환)
+    const party = loadParty();
+    document.getElementById("partyAdult").value = s.adult  ?? party.adult;
+    document.getElementById("partyTeen").value  = s.teen   ?? party.teen;
+    document.getElementById("partyKid").value   = s.kid    ?? party.kid;
   })();
 
-  ["partyAdult", "partyTeen", "partyKid"].forEach((id) => {
+  // 설정값이 바뀔 때마다 저장
+  ["region", "weekOffset", "weekdayBudget", "weekendBudget", "partyAdult", "partyTeen", "partyKid"].forEach((id) => {
     document.getElementById(id).addEventListener("change", () => {
-      localStorage.setItem(PARTY_KEY, JSON.stringify(currentParty()));
-      renderCostCalc();
+      saveSettings();
+      // 가족 구성 변경 시 계산기 미리보기도 갱신
+      if (["partyAdult", "partyTeen", "partyKid"].includes(id)) renderCostCalc();
     });
   });
 
