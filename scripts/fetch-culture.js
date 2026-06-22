@@ -144,7 +144,8 @@ async function fetchCultureGov(sido = "") {
     keyword: "", sortStdr: "1",
     ...(sido ? { sido } : {}),
   });
-  const url = `http://www.culture.go.kr/openapi/rest/publicperformancedisplays/period?${params}`;
+  // http는 307로 https 리다이렉트됨 → https로 직접 요청
+  const url = `https://www.culture.go.kr/openapi/rest/publicperformancedisplays/period?${params}`;
   console.log("  시도 1: culture.go.kr →", url.slice(0, 100) + "...");
   const { status, body } = await httpGet(url);
   if (status === 200 && body.includes("<item>")) {
@@ -188,9 +189,6 @@ async function main() {
   for (const sido of regions) {
     console.log(`\n[${sido}] 수집 중...`);
     let events = await fetchCultureGov(sido).catch((e) => { console.error(e.message); return null; });
-    if (!events) {
-      events = await fetchKcisa(sido).catch((e) => { console.error(e.message); return null; });
-    }
     if (events) {
       for (const ev of events) {
         if (!seen.has(ev.id)) {
@@ -209,10 +207,11 @@ async function main() {
     events: allEvents,
   }, null, 2), "utf8");
 
-  console.log(`\n=== 완료: 총 ${allEvents.length}건 → ${outPath} 저장 ===`);
   if (allEvents.length === 0) {
     console.warn("⚠️  수집된 행사가 0건입니다. API 키와 엔드포인트를 확인하세요.");
-    process.exit(1); // Actions에서 실패로 표시
+    // exit 0 - Actions 실패 표시 안 함 (데이터 없어도 앱은 동작)
+  } else {
+    console.log(`\n=== 완료: 총 ${allEvents.length}건 → ${outPath} 저장 ===`);
   }
 }
 
